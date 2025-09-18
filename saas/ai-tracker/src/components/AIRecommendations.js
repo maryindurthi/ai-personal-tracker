@@ -1,55 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "../firebase";
 
-export default function AIRecommendations({ isPremium }) {
-  const [tips, setTips] = useState("");
-  const [loading, setLoading] = useState(false);
+export default function AIRecommendations() {
+  const [recommendation, setRecommendation] = useState("");
+  const [status, setStatus] = useState("Fetching recommendation...");
 
-  const fetchTips = async () => {
-    if (!auth.currentUser) {
-      setTips("Please log in first.");
-      return;
-    }
-    setLoading(true);
+  useEffect(() => {
+    async function fetchRecommendation() {
+      if (!auth.currentUser) {
+        setStatus("Please login to see AI recommendations.");
+        return;
+      }
 
-    try {
       const res = await fetch("/api/recommendation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: auth.currentUser.uid }),
+        body: JSON.stringify({ uid: auth.currentUser.uid }),
       });
 
       const data = await res.json();
-      setTips(data.recommendation || "No tips available.");
-    } catch (err) {
-      setTips("Error fetching tips.");
+      if (res.ok) {
+        setRecommendation(data.recommendation);
+        setStatus("");
+      } else {
+        setStatus(data.error);
+      }
     }
 
-    setLoading(false);
-  };
-
-  if (!isPremium) {
-    return (
-      <div className="p-4 border rounded mt-6">
-        <h2 className="text-lg font-bold">AI Recommendations</h2>
-        <p className="text-gray-500">Upgrade to Premium to unlock personalized AI tips.</p>
-      </div>
-    );
-  }
+    fetchRecommendation();
+  }, []);
 
   return (
-    <div className="p-4 border rounded mt-6">
+    <div className="p-4 max-w-md mx-auto border rounded">
       <h2 className="text-lg font-bold mb-2">AI Recommendations</h2>
-      <button
-        onClick={fetchTips}
-        disabled={loading}
-        className="bg-purple-500 text-white px-4 py-2 rounded"
-      >
-        {loading ? "Loading..." : "Get Tips"}
-      </button>
-      <p className="mt-4 whitespace-pre-line">{tips}</p>
+      {status && <p className="text-red-500">{status}</p>}
+      {recommendation && <p>{recommendation}</p>}
     </div>
   );
 }
